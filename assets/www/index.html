@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="format-detection" content="telephone=no" />
+        <!-- WARNING: for iOS 7, remove the width=device-width and height=device-height attributes. See https://issues.apache.org/jira/browse/CB-4323 -->
+        <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width, height=device-height, target-densitydpi=device-dpi" />
+        <link rel="stylesheet" type="text/css" href="css/index.css" />
+        <title>SQLCipher Tester</title>
+        <script type="text/javascript" src="cordova.js"></script>
+        <style>
+        	#console {
+				overflow: auto;
+				height: 600px;
+				border:1px solid;
+        	}
+        	
+        	button {
+        		padding: 10px;
+        	}
+        	
+        	span.error {
+        		color: red;
+        	}
+        	span.success {
+        		color: green;
+        	}
+        	
+
+        </style>
+        
+        <script>
+        var dbObj;
+        
+        function createDb () {
+        	var dbName = "TestDB";
+        	var dbKey = "Key123";
+        	sqlLog("Creating db with name:" + dbName + " and key:" + dbKey + "...");
+        	dbObj = window.sqlitePlugin.openDatabase({name: dbName, key: dbKey},
+        		//open success callback
+                function() {
+					sqlLog("db: " + dbName + " opened successfully!", {success:true});
+                },
+                //open fail callback
+                function() {
+					sqlLog("db: " + dbName + " could not be opened!", {error:true});
+                }
+            );
+        	
+        }
+        
+        function tableLookup () {
+        	sqlLog("Looking up table...");
+        	dbObj.transaction(
+                function (tx) {
+                    var sql = "SELECT name FROM sqlite_master WHERE type='table' AND name=:tableName";
+                    tx.executeSql(sql, ['employee'], function (tx, results) {
+                        if (results.rows.length === 1) {
+                            sqlLog('Table exists', {success:true});
+                        } else {
+                            sqlLog('Table does not initialized', {success:true});
+                        }
+                    });
+                },
+                txErrorHandler
+            );
+        	
+        }
+        
+        function createTable () {
+        	sqlLog("Creating table...");
+        	dbObj.transaction(
+                    function (tx) {
+                        var sql =
+                            "CREATE TABLE IF NOT EXISTS employee ( " +
+                            "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                            "firstName VARCHAR(50), " +
+                            "lastName VARCHAR(50))";
+                        tx.executeSql(sql, [],
+                            function (tx, results) {
+                                sqlLog("Successfully created table", {success:true});
+                            }
+                        );
+                    },
+                    txErrorHandler
+                );
+        }
+        
+        function getRecords () {
+        	sqlLog("Getting Record count...");
+        	dbObj.transaction(
+                function (tx) {
+                    var sql = "SELECT e.id, e.firstName, e.lastName " +
+                        "FROM employee e ";
+                    tx.executeSql(sql, [],
+                        function (tx, results) {
+                            sqlLog("Found " + results.rows.length + " records successfully!", {success:true});
+                        }
+                    );
+                },
+                txErrorHandler
+			);
+        }
+        
+        function addRecord () {
+        	sqlLog("Adding record...");
+        	var employees = [
+        		{
+        			firstName: "John",
+        			lastName: "Gault"
+        		}
+        	]
+        	dbObj.transaction(
+                function (tx) {
+                    var l = employees.length,
+                        sql =
+                        "INSERT OR REPLACE INTO employee " +
+                        "(firstName, lastName) " +
+                        "VALUES (?, ?)",
+                        i = 0,
+                        e;
+                    for (; i < l; i++) {
+                        e = employees[i];
+                        var params = [e.firstName, e.lastName];
+                        tx.executeSql(sql, params,
+                            function () {
+                                sqlLog("Added record " + e.firstName + " " + e.lastName + " successfully", {success:true});
+                            }
+                        );
+                    }
+                },
+                txErrorHandler
+            );
+        	
+        }
+        
+        function txErrorHandler (e) {
+        	sqlLog('Error talking to DB: ' + e, {error:true});
+        }
+        
+        function sqlLog (text, args) {
+            console.log(text);
+        	var cssClass="";
+        	if (args && args.success) {
+        		cssClass="success";
+        	}
+        	else if (args && args.error) {
+        		cssClass="error";
+        	}
+        	var logger = document.querySelector("#console");
+        	logger.innerHTML += '<span class="' + cssClass + '">' + text + '</span><br>';
+        	logger.scrollTop = logger.scrollHeight;
+        	
+        }
+
+        function clearLog() {
+        	console.log("clearing text area logger");
+        	var logger = document.querySelector("#console");
+        	logger.innerHTML = '';
+        	logger.scrollTop = 0;
+        }
+            
+        </script>
+    </head>
+    <body>
+        <button onclick="createDb()">Create/Open DB</button>
+        <button onclick="createTable()">Create table</button>
+        <button onclick="tableLookup()">Check table</button>
+        <button onclick="addRecord()">Add record</button>
+        <button onclick="getRecords()">Get Record Count</button>
+        <br/>
+        <div id="console"></div><br/>
+        <button onclick="clearLog()">Clear Log</button>
+        
+    </body>
+</html>
